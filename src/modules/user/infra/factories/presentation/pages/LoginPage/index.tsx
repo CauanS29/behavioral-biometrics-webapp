@@ -42,34 +42,8 @@ export default function LoginPage() {
           <div className="p-6">
             <LoginForm />
           </div>
-
-          {/* Rodapé do Card */}
-          <div className="bg-gray-900 p-4 border-t border-gray-700 flex justify-between items-center text-sm">
-            <Link href="/register" className="text-gray-400 hover:text-orange-500 transition-colors duration-200">
-              Criar uma conta
-            </Link>
-            <Link
-              href="/forgot-password"
-              className="text-gray-400 hover:text-orange-500 transition-colors duration-200"
-            >
-              Esqueceu a senha?
-            </Link>
-          </div>
         </div>
 
-        {/* Informações Adicionais */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>
-            Ao fazer login, você concorda com nossos{" "}
-            <Link href="/terms" className="text-orange-500 hover:text-orange-400">
-              Termos de Serviço
-            </Link>{" "}
-            e{" "}
-            <Link href="/privacy" className="text-orange-500 hover:text-orange-400">
-              Política de Privacidade
-            </Link>
-          </p>
-        </div>
       </div>
 
       {/* Decoração de fundo */}

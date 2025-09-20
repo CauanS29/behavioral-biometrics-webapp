@@ -10,18 +10,18 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import UseContent from "../../../services/hooks/useContent"
 
 export default function UploadContentPage() {
   const [file, setFile] = useState<File | null>(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploadStatus, setUploadStatus] = useState<"idle" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState("")
   const [userName, setUserName] = useState("")
   const [selectedWeapon, setSelectedWeapon] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
-
+  const { handleUploadContent, isPending, error, data } = UseContent()
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragging(true)
@@ -80,7 +80,6 @@ export default function UploadContentPage() {
       return
     }
 
-    setIsUploading(true)
     setUploadProgress(0)
 
     // Simulate upload progress
@@ -95,43 +94,22 @@ export default function UploadContentPage() {
     }, 200)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000))
-
-      console.log("🚀 ~ handleUpload ~ file:", file)
-
-
-      const response = await fetch("http://localhost:8080/api/sprays", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-
-        body: JSON.stringify({
-          userID: "6859886729b15ccf0db4cb40",
-          weapon: selectedWeapon,
-          sprayData: file,
-        }),
-      })
-
-      console.log("🚀 ~ handleUpload ~ response:", response)
-
+      // Converter arquivo para base64
+      const fileContent = await file.text()
+      
+      await handleUploadContent({
+        userID: userName,
+        weapon: selectedWeapon,
+        sprayData: fileContent,
+      });
+      
       clearInterval(interval)
-      setUploadProgress(100)
       setUploadStatus("success")
-
-      // Reset after 3 seconds
-      setTimeout(() => {
-        setFile(null)
-        setUploadProgress(0)
-        setIsUploading(false)
-        // Não resetamos o nome e a arma para facilitar múltiplos uploads
-      }, 3000)
+      setUploadProgress(100)
     } catch (error) {
       clearInterval(interval)
       setUploadStatus("error")
       setErrorMessage("Ocorreu um erro durante o upload. Tente novamente.")
-      setIsUploading(false)
     }
   }
 
@@ -170,7 +148,7 @@ export default function UploadContentPage() {
 
         <div className="grid gap-4 md:grid-cols-2 mb-6">
           <div className="space-y-2">
-            <Label htmlFor="userName" className="text-sm font-medium">
+            <Label htmlFor="userName" className="text-sm font-medium text-gray-300">
               Seu nome
             </Label>
             <Input
@@ -178,19 +156,19 @@ export default function UploadContentPage() {
               placeholder="Digite seu nome ou nickname"
               value={userName}
               onChange={(e) => setUserName(e.target.value)}
-              className="bg-gray-800 border-gray-700 focus:border-orange-500 focus:ring-orange-500/20"
+              className="bg-gray-800 border-gray-700 focus:border-orange-500 focus:ring-orange-500/20 text-gray-300"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="weapon" className="text-sm font-medium">
+            <Label htmlFor="weapon" className="text-sm font-medium text-gray-300">
               Arma utilizada
             </Label>
             <Select value={selectedWeapon} onValueChange={setSelectedWeapon}>
-              <SelectTrigger id="weapon" className="bg-gray-800 border-gray-700 focus:ring-orange-500/20">
+              <SelectTrigger id="weapon" className="bg-gray-800 border-gray-700 focus:ring-orange-500/20 text-gray-300">
                 <SelectValue placeholder="Selecione a arma" />
               </SelectTrigger>
-              <SelectContent className="bg-gray-800 border-gray-700">
+              <SelectContent className="bg-gray-300 border-gray-700">
                 <SelectItem value="ak47">AK-47</SelectItem>
                 <SelectItem value="m4a4">M4A4</SelectItem>
                 <SelectItem value="m4a1s">M4A1-S</SelectItem>
@@ -227,7 +205,7 @@ export default function UploadContentPage() {
           {!file ? (
             <div className="py-4">
               <Upload className="mx-auto h-12 w-12 text-gray-400 mb-2" />
-              <p className="text-lg font-medium">Arraste e solte seu arquivo CSV aqui</p>
+              <p className="text-lg font-medium text-gray-300">Arraste e solte seu arquivo CSV aqui</p>
               <p className="text-sm text-gray-400 mt-1">ou clique para selecionar</p>
               <p className="text-xs text-gray-500 mt-4">Formato suportado: CSV (máx. 5MB)</p>
             </div>
@@ -241,7 +219,7 @@ export default function UploadContentPage() {
                     <p className="text-xs text-gray-400">{(file.size / 1024).toFixed(1)} KB • CSV</p>
                   </div>
                 </div>
-                {!isUploading && (
+                {!isPending && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -254,7 +232,7 @@ export default function UploadContentPage() {
                 )}
               </div>
 
-              {isUploading && (
+              {isPending && (
                 <div className="mt-4">
                   <div className="flex justify-between text-xs text-gray-400 mb-1">
                     <span>Enviando...</span>
@@ -276,8 +254,8 @@ export default function UploadContentPage() {
 
         {file && uploadStatus !== "success" && (
           <div className="flex justify-end mt-4">
-            <Button onClick={handleUpload} disabled={isUploading} className="bg-orange-600 hover:bg-orange-700">
-              {isUploading ? "Enviando..." : "Enviar arquivo"}
+            <Button onClick={handleUpload} disabled={isPending} className="bg-orange-600 hover:bg-orange-700">
+              {isPending ? "Enviando..." : "Enviar arquivo"}
             </Button>
           </div>
         )}

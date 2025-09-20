@@ -52,18 +52,6 @@ export default function Header({
               >
                 Início
               </Link>
-              <Link
-                href="/login"
-                className="text-gray-400 hover:text-orange-500 transition-colors duration-200 text-sm font-medium"
-              >
-                Login
-              </Link>
-              <Link
-                href="/register"
-                className="text-gray-400 hover:text-orange-500 transition-colors duration-200 text-sm font-medium"
-              >
-                Registrar
-              </Link>
             </nav>
           </div>
         </header>

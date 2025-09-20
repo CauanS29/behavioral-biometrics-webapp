@@ -4,59 +4,81 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAuth } from "@/modules/user/infra/services/hooks/useAuth"
+
+// Schema de validação com Zod
+const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email é obrigatório")
+    .email("Email inválido"),
+  password: z
+    .string()
+    .min(1, "Senha é obrigatória")
+    .min(8, "Senha deve ter pelo menos 8 caracteres"),
+})
+
+// Tipo TypeScript derivado do schema
+type LoginFormData = z.infer<typeof loginSchema>
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
+  const { login } = useAuth()
 
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  })
+
+  async function onSubmit(data: LoginFormData) {
     setError("")
     setIsLoading(true)
 
-    const formData = new FormData(event.currentTarget)
-    const username = formData.get("username") as string
-    const password = formData.get("password") as string
-
-    // Validação básica
-    if (!username || !password) {
-      setError("Por favor, preencha todos os campos.")
-      setIsLoading(false)
-      return
-    }
 
     try {
-      // Simulação de login - substitua por sua lógica real de autenticação
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await login.handleLogin({
+        email: data.email,
+        password: data.password,
+      })
 
-      // Exemplo de verificação - remova ou adapte conforme necessário
-      if (username === "demo" && password === "password") {
-        // Login bem-sucedido
-        router.push("/") // Redireciona para a página inicial
-      } else {
-        setError("Credenciais inválidas. Tente novamente.")
-      }
-    } catch (err) {
-      setError("Ocorreu um erro ao fazer login. Tente novamente.")
-      console.error(err)
+
+      router.push("/enviar-conteudo")
+    } catch (err: any) {
+      console.error("Erro detalhado:", err)
+      
+      const errorMessage = err?.response?.data?.message || 
+                          err?.message || 
+                          "Ocorreu um erro ao fazer login. Tente novamente."
+      setError(errorMessage)
+      console.error("Erro no login:", err)
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      {error && (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {(error || login.error) && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription>{error || login.error}</AlertDescription>
         </Alert>
       )}
 
@@ -64,40 +86,41 @@ export function LoginForm() {
         <Label htmlFor="email">Email</Label>
         <Input
           id="email"
-          name="email"
+          {...register("email")}
           placeholder="Seu email"
           autoComplete="email"
-          required
-          className="bg-gray-900 border-gray-700 focus:border-orange-500 focus:ring-orange-500/20"
+          className={`bg-gray-900 border-gray-700 focus:border-orange-500 focus:ring-orange-500/20 ${
+            errors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+          }`}
         />
+        {errors.email && (
+          <p className="text-sm text-red-500">{errors.email.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
         <Label htmlFor="password">Senha</Label>
         <Input
           id="password"
-          name="password"
           type="password"
+          {...register("password")}
           placeholder="Sua senha"
           autoComplete="current-password"
-          required
-          className="bg-gray-900 border-gray-700 focus:border-orange-500 focus:ring-orange-500/20"
+          className={`bg-gray-900 border-gray-700 focus:border-orange-500 focus:ring-orange-500/20 ${
+            errors.password ? "border-red-500 focus:border-red-500 focus:ring-red-500/20" : ""
+          }`}
         />
-      </div>
-
-      <div className="flex items-center space-x-2">
-        <Checkbox id="remember" />
-        <Label htmlFor="remember" className="text-sm font-normal cursor-pointer">
-          Lembrar de mim
-        </Label>
+        {errors.password && (
+          <p className="text-sm text-red-500">{errors.password.message}</p>
+        )}
       </div>
 
       <Button
         type="submit"
-        disabled={isLoading}
+        disabled={isLoading || login.isPending}
         className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white"
       >
-        {isLoading ? "Entrando..." : "Entrar"}
+        {isLoading || login.isPending ? "Entrando..." : "Entrar"}
       </Button>
 
     </form>
