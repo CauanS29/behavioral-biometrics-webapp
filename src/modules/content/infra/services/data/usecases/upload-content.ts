@@ -7,7 +7,6 @@ export class UploadContent {
     async uploadContent(content: UploadContentDTO) {
         const response = await api.post<UploadContentResponse>('/sprays', {
             userID: content.userID,
-            weapon: content.weapon,
             sprayData: content.sprayData,
         });
         return response.data;
