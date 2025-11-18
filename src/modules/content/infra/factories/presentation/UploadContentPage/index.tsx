@@ -17,6 +17,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { environment } from "@/modules/shared/infra/config/environment";
 
 export default function UploadContentPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -114,7 +115,7 @@ export default function UploadContentPage() {
       });
 
       // Fazer o upload - substitua pela sua URL da API
-      const response = await fetch("http://localhost:8080/api/sprays", {
+      const response = await fetch(`${environment.apiUrl}sprays`, {
         method: "POST",
         body: formData,
         // Não definir Content-Type manualmente - o browser define automaticamente com boundary
