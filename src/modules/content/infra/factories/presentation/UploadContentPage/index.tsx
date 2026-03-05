@@ -9,7 +9,6 @@ import {
   AlertCircle,
   CheckCircle,
   Upload,
-  FileText,
   X,
   Info,
   Film,
@@ -20,6 +19,10 @@ import { Label } from "@/components/ui/label";
 import { environment } from "@/modules/shared/infra/config/environment";
 
 export default function UploadContentPage() {
+  const MAX_DEM_FILE_SIZE_MB = 1024;
+  const MAX_DEM_FILE_SIZE_BYTES = MAX_DEM_FILE_SIZE_MB * 1024 * 1024;
+  const MAX_SUCCESS_RESPONSE_PARSE_BYTES = 1 * 1024 * 1024;
+
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -68,14 +71,15 @@ export default function UploadContentPage() {
       return;
     }
 
-    // Check file size (max 100MB - demos podem ser grandes)
-    if (file.size > 100 * 1024 * 1024) {
-      setErrorMessage("O arquivo é muito grande. O tamanho máximo é 100MB.");
+    // Check file size (max 1GB - demos podem ser grandes)
+    if (file.size > MAX_DEM_FILE_SIZE_BYTES) {
+      setErrorMessage(
+        `O arquivo é muito grande. O tamanho maximo e ${MAX_DEM_FILE_SIZE_MB}MB.`,
+      );
       return;
     }
 
     setFile(file);
-    console.log("🚀 ~ validateAndSetFile ~ file:", file);
   };
 
   const handleUpload = async () => {
@@ -92,54 +96,67 @@ export default function UploadContentPage() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    // Simulate upload progress
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 90) {
-          return prev;
-        }
-        return prev + 10;
-      });
-    }, 200);
-
     try {
       // Criar FormData para enviar como multipart/form-data
       const formData = new FormData();
       formData.append("userID", userName);
       formData.append("demoFile", file, file.name);
 
-      console.log("📤 Enviando FormData:", {
-        userID: userName,
-        fileName: file.name,
-        fileSize: file.size,
+      const response = await new Promise<{
+        ok: boolean;
+        status: number;
+        bodyText: string;
+      }>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.open("POST", `${environment.apiUrl}sprays`, true);
+
+        xhr.upload.onprogress = (event) => {
+          if (!event.lengthComputable) return;
+          const progress = Math.round((event.loaded / event.total) * 100);
+          setUploadProgress(progress);
+        };
+
+        xhr.onerror = () => reject(new Error("Falha de rede durante upload"));
+        xhr.ontimeout = () => reject(new Error("Timeout durante upload"));
+        xhr.timeout = 30 * 60 * 1000;
+
+        xhr.onload = () => {
+          resolve({
+            ok: xhr.status >= 200 && xhr.status < 300,
+            status: xhr.status,
+            bodyText: xhr.responseText || "",
+          });
+        };
+
+        xhr.send(formData);
       });
 
-      // Fazer o upload - substitua pela sua URL da API
-      const response = await fetch(`${environment.apiUrl}sprays`, {
-        method: "POST",
-        body: formData,
-        // Não definir Content-Type manualmente - o browser define automaticamente com boundary
-      });
-
-      clearInterval(interval);
       setUploadProgress(100);
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao fazer upload");
+      let responseData: { message?: string; data?: unknown[] } | null = null;
+      if (response.bodyText.length > 0 &&
+          response.bodyText.length <= MAX_SUCCESS_RESPONSE_PARSE_BYTES) {
+        try {
+          responseData = JSON.parse(response.bodyText);
+        } catch {
+          responseData = null;
+        }
       }
 
-      const data = await response.json();
-      console.log("✅ Resposta da API:", data);
+      if (!response.ok) {
+        const errorMessage =
+          responseData?.message ||
+          `Erro ao fazer upload (status ${response.status}).`;
+        throw new Error(errorMessage);
+      }
 
       setUploadStatus("success");
       setSuccessMessage(
-        data.message || 
-        `Upload concluído! ${data.data?.length || 0} spray(s) processado(s).`
+        responseData?.message ||
+          "Upload enviado com sucesso. O processamento foi iniciado."
       );
     } catch (error) {
-      console.error("❌ Erro no upload:", error);
-      clearInterval(interval);
       setUploadStatus("error");
       setErrorMessage(
         error instanceof Error
@@ -251,7 +268,7 @@ export default function UploadContentPage() {
                 ou clique para selecionar
               </p>
               <p className="text-xs text-gray-500 mt-4">
-                Formato suportado: .dem (máx. 100MB)
+                Formato suportado: .dem (max. {MAX_DEM_FILE_SIZE_MB}MB)
               </p>
             </div>
           ) : (
